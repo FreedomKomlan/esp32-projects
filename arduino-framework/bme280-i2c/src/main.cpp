@@ -6,7 +6,7 @@
 #define SEALEVELPRESSURE_HPA (1013.25)
 #define SDA_PIN 21
 #define SCL_PIN 22
-#define BME_ADDRESS 0xEC
+#define BME_ADDRESS 0xEC // (0x76) if SDO -> GND else 0x77
 
 Adafruit_BME280 bme;
 
@@ -18,14 +18,15 @@ void getValues();
 
 void setup() {
   Serial.begin(115200);
+  Wire.begin(SDA_PIN, SCL_PIN); // SDA=21, SCL=22 (pins par défaut)
   Serial.println("BME280 Test");
 
-  if (!(bme.begin(BME280_ADDRESS))) {
+  if (!bme.begin(BME280_ADDRESS)) {
     /* code */
     Serial.println("BME280 not found");
-    while (!(bme.begin(BME280_ADDRESS))) {
+    while (!bme.begin(BME280_ADDRESS)) {
       Serial.println("Review hardware setup");
-      delay(500);
+      delay(1000);
     }
     
   }
