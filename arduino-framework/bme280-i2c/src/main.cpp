@@ -15,6 +15,7 @@ float temp, pres, hum, alt;
 
 // Functions
 void scani2c();
+void readstate(int sda_pin, int scl_pin);
 void bme_init(int sda_pin, int scl_pin);
 void getValues();
 void initLed(int pin);
@@ -22,6 +23,7 @@ void blinkLed(int pin, int delay_ms);
 
 void setup() {
   Serial.begin(115200);
+  readstate(SDA_PIN, SCL_PIN);
   scani2c();
   bme_init(SDA_PIN, SCL_PIN);
   // initLed(SDA_PIN);
@@ -98,4 +100,15 @@ void scani2c() {
   }
   if (nDevices == 0) Serial.println("No I2C devices found");
   vTaskDelay(5000);
+}
+
+void readstate(int sda_pin, int scl_pin) {
+  // Read lines state
+  pinMode(sda_pin, INPUT_PULLUP);
+  pinMode(scl_pin, INPUT_PULLUP);
+  delay(10);
+  bool sda_state = digitalRead(21);
+  bool scl_state = digitalRead(22);
+  Serial.printf("SDA: %d, SCL: %d\n", sda_state, scl_state);
+  if (!sda_state) Serial.println("Warning: SDA is LOW (bus stuck?)");
 }
