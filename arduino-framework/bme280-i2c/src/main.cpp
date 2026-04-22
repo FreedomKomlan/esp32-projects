@@ -1,79 +1,53 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BMP280.h>
-
-// #define SEALEVELPRESSURE_HPA (1013.25)
-// #define BME_ADDRESS 0x76 // (0x76) if SDO -> GND else 0x77
-int SDA_PIN = 21;
-int SCL_PIN = 22;
-
-/***************************************************************************
-  This is a library for the BMP280 humidity, temperature & pressure sensor
-
-  Designed specifically to work with the Adafruit BMP280 Breakout
-  ----> http://www.adafruit.com/products/2651
-
-  These sensors use I2C or SPI to communicate, 2 or 4 pins are required
-  to interface.
-
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit andopen-source hardware by purchasing products
-  from Adafruit!
-
-  Written by Limor Fried & Kevin Townsend for Adafruit Industries.
-  MIT license, see LICENSE.txt for more information
- ***************************************************************************/
-
-#define BMP_SCK  (13)
-#define BMP_MISO (12)
-#define BMP_MOSI (11)
-#define BMP_CS   (10)
-
-Adafruit_BMP280 bmp; // I2C
-//Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
-//Adafruit_BMP280 bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
 
 void setup() {
   Serial.begin(115200);
-  Serial.println(F("BMP280 Forced Mode Test."));
+  Wire.begin(21, 22);
+  Wire.setClock(10000); // 10 kHz, très lent
 
-  //if (!bmp.begin(BMP280_ADDRESS_ALT, BMP280_CHIPID)) {
-  if (!bmp.begin()) {
-    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                      "try a different address!"));
-    while (1) delay(10);
-  }
+  Serial.println("BME280 Hard Reset Attempt");
 
-  /* Default settings from datasheet. */
-  bmp.setSampling(Adafruit_BMP280::MODE_FORCED,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
-}
-
-void loop() {
-  // must call this to wake sensor up and get new measurement data
-  // it blocks until measurement is complete
-  if (bmp.takeForcedMeasurement()) {
-    // can now print out the new measurements
-    Serial.print(F("Temperature = "));
-    Serial.print(bmp.readTemperature());
-    Serial.println(" *C");
-
-    Serial.print(F("Pressure = "));
-    Serial.print(bmp.readPressure());
-    Serial.println(" Pa");
-
-    Serial.print(F("Approx altitude = "));
-    Serial.print(bmp.readAltitude(1013.25)); /* Adjusted to local forecast! */
-    Serial.println(" m");
-
-    Serial.println();
-    delay(2000);
+  // 1. Reset logiciel
+  Wire.beginTransmission(0x76);
+  Wire.write(0xE0); // registre reset
+  Wire.write(0xB6); // mot magique
+  byte err = Wire.endTransmission();
+  if (err != 0) {
+    Serial.printf("Reset write failed, error %d\n", err);
   } else {
-    Serial.println("Forced measurement failed!");
+    Serial.println("Reset command sent");
+  }
+  delay(100);
+
+  // 2. Lire Chip ID
+  Wire.beginTransmission(0x76);
+  Wire.write(0xD0);
+  Wire.endTransmission(false);
+  Wire.requestFrom(0x76, 1);
+  if (Wire.available()) {
+    uint8_t id = Wire.read();
+    Serial.printf("Chip ID: 0x%02X (expected 0x60 or 0x58)\n", id);
+    if (id == 0x60 || id == 0x58) {
+      Serial.println("Sensor is alive!");
+    } else {
+      Serial.println("Wrong ID - sensor may be damaged or wrong address");
+    }
+  } else {
+    Serial.println("No response - sensor not detected");
   }
 
+  // 3. Essayer l'autre adresse (0x77)
+  Wire.beginTransmission(0x77);
+  Wire.write(0xD0);
+  Wire.endTransmission(false);
+  Wire.requestFrom(0x77, 1);
+  if (Wire.available()) {
+    uint8_t id = Wire.read();
+    Serial.printf("Chip ID at 0x77: 0x%02X\n", id);
+  } else {
+    Serial.println("No response at 0x77 either");
+  }
 }
+
+void loop() {}
