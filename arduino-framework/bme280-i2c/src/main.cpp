@@ -4,7 +4,7 @@
 #include <Adafruit_BME280.h>
 
 #define SEALEVELPRESSURE_HPA (1013.25)
-#define BME_ADDRESS 0xEC // (0x76) if SDO -> GND else 0x77
+#define BME_ADDRESS 0x76 // (0x76) if SDO -> GND else 0x77
 int SDA_PIN = 21;
 int SCL_PIN = 22;
 
@@ -14,27 +14,28 @@ float temp, pres, hum, alt;
 
 
 // Functions
+void bme_init(int sda_pin, int scl_pin);
 void getValues();
 void initLed(int pin);
 void blinkLed(int pin, int delay_ms);
 
 void setup() {
   Serial.begin(115200);
-  // bme_init(SDA_PIN, SCL_PIN);
-  initLed(SDA_PIN);
+  bme_init(SDA_PIN, SCL_PIN);
+  // initLed(SDA_PIN);
   // initLed(SCL_PIN);  
 }
 
 void loop() {
-  // getValues();
-  blinkLed(SDA_PIN, 1000);
+  getValues();
+  // blinkLed(SDA_PIN, 1000);
   // blinkLed(SCL_PIN, 500);
   
 }
 
 
 void bme_init(int sda_pin, int scl_pin) {
-  Wire.begin(sda_pin, sda_pin); // SDA=21, SCL=22 (pins par défaut)
+  Wire.begin(sda_pin, scl_pin); // SDA=21, SCL=22 (pins par défaut)
   Serial.println("BME280 Test");
 
   if (!bme.begin(BME280_ADDRESS)) {
