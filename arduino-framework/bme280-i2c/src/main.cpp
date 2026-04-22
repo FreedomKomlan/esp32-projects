@@ -23,7 +23,10 @@ void setup() {
   if (!(bme.begin(BME280_ADDRESS))) {
     /* code */
     Serial.println("BME280 not found");
-    while (1);
+    while (!(bme.begin(BME280_ADDRESS))) {
+      Serial.println("Review hardware setup");
+      delay(500);
+    }
     
   }
   Serial.println("BME280 Ready - Test");
