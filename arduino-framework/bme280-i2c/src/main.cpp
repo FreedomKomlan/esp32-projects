@@ -1,114 +1,79 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+#include <Adafruit_BMP280.h>
 
-#define SEALEVELPRESSURE_HPA (1013.25)
-#define BME_ADDRESS 0x76 // (0x76) if SDO -> GND else 0x77
+// #define SEALEVELPRESSURE_HPA (1013.25)
+// #define BME_ADDRESS 0x76 // (0x76) if SDO -> GND else 0x77
 int SDA_PIN = 21;
 int SCL_PIN = 22;
 
-Adafruit_BME280 bme;
+/***************************************************************************
+  This is a library for the BMP280 humidity, temperature & pressure sensor
 
-float temp, pres, hum, alt;
+  Designed specifically to work with the Adafruit BMP280 Breakout
+  ----> http://www.adafruit.com/products/2651
 
+  These sensors use I2C or SPI to communicate, 2 or 4 pins are required
+  to interface.
 
-// Functions
-void scani2c();
-void readstate(int sda_pin, int scl_pin);
-void bme_init(int sda_pin, int scl_pin);
-void getValues();
-void initLed(int pin);
-void blinkLed(int pin, int delay_ms);
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit andopen-source hardware by purchasing products
+  from Adafruit!
+
+  Written by Limor Fried & Kevin Townsend for Adafruit Industries.
+  MIT license, see LICENSE.txt for more information
+ ***************************************************************************/
+
+#define BMP_SCK  (13)
+#define BMP_MISO (12)
+#define BMP_MOSI (11)
+#define BMP_CS   (10)
+
+Adafruit_BMP280 bmp; // I2C
+//Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
+//Adafruit_BMP280 bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
 
 void setup() {
   Serial.begin(115200);
-  readstate(SDA_PIN, SCL_PIN);
-  scani2c();
-  bme_init(SDA_PIN, SCL_PIN);
-  // initLed(SDA_PIN);
-  // initLed(SCL_PIN);  
+  Serial.println(F("BMP280 Forced Mode Test."));
+
+  //if (!bmp.begin(BMP280_ADDRESS_ALT, BMP280_CHIPID)) {
+  if (!bmp.begin()) {
+    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+                      "try a different address!"));
+    while (1) delay(10);
+  }
+
+  /* Default settings from datasheet. */
+  bmp.setSampling(Adafruit_BMP280::MODE_FORCED,     /* Operating Mode. */
+                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 }
 
 void loop() {
-  getValues();
-  // blinkLed(SDA_PIN, 1000);
-  // blinkLed(SCL_PIN, 500);
-  
-}
+  // must call this to wake sensor up and get new measurement data
+  // it blocks until measurement is complete
+  if (bmp.takeForcedMeasurement()) {
+    // can now print out the new measurements
+    Serial.print(F("Temperature = "));
+    Serial.print(bmp.readTemperature());
+    Serial.println(" *C");
 
+    Serial.print(F("Pressure = "));
+    Serial.print(bmp.readPressure());
+    Serial.println(" Pa");
 
-void bme_init(int sda_pin, int scl_pin) {
-  Wire.setClock(100000);
-  Wire.begin(sda_pin, scl_pin); // SDA=21, SCL=22 (pins par défaut)
-  Serial.println("BME280 Test");
+    Serial.print(F("Approx altitude = "));
+    Serial.print(bmp.readAltitude(1013.25)); /* Adjusted to local forecast! */
+    Serial.println(" m");
 
-  if (!bme.begin(0x76)) {
-    /* code */
-    Serial.println("BME280 not found");
-    while (!bme.begin(0x76)) {
-      Serial.println("Review hardware setup");
-      vTaskDelay(5000);
-    }
-    
+    Serial.println();
+    delay(2000);
+  } else {
+    Serial.println("Forced measurement failed!");
   }
-  Serial.println("BME280 Ready - Test");
-  vTaskDelay(1000);
-}
 
-void getValues(){
-  temp = bme.readTemperature();
-  pres = bme.readPressure()/100.0f;
-  hum = bme.readHumidity();
-  alt = bme.readAltitude(SEALEVELPRESSURE_HPA);
-  Serial.print("Altitude: "); Serial.println(alt);
-  Serial.print("Pressure: "); Serial.println(pres);
-  Serial.print("Temperature: "); Serial.println(temp);
-  Serial.print("Humidity: "); Serial.println(hum);
-  Serial.print("\n");
-  vTaskDelay(1000);
-}
-
-void initLed(int pin) {
-  pinMode(pin, OUTPUT);
-  digitalWrite(pin, LOW);
-}
-
-void blinkLed(int pin, int delay_ms) {
-  digitalWrite(pin, HIGH);
-  vTaskDelay(delay_ms);
-  digitalWrite(pin, LOW);
-  vTaskDelay(delay_ms);
-}
-
-void scani2c() {
-  byte error, address;
-  int nDevices = 0;
-  Serial.println("Scanning...");
-  for(address = 1; address < 127; address++) {
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-    if (error == 0) {
-      Serial.print("Device found at 0x");
-      if (address < 16) Serial.print("0");
-      Serial.print(address, HEX);
-      Serial.print(" (7-bit) or 0x");
-      Serial.print((address << 1), HEX);
-      Serial.println(" (8-bit)");
-      nDevices++;
-    }
-  }
-  if (nDevices == 0) Serial.println("No I2C devices found");
-  vTaskDelay(5000);
-}
-
-void readstate(int sda_pin, int scl_pin) {
-  // Read lines state
-  pinMode(sda_pin, INPUT_PULLUP);
-  pinMode(scl_pin, INPUT_PULLUP);
-  delay(10);
-  bool sda_state = digitalRead(21);
-  bool scl_state = digitalRead(22);
-  Serial.printf("SDA: %d, SCL: %d\n", sda_state, scl_state);
-  if (!sda_state) Serial.println("Warning: SDA is LOW (bus stuck?)");
 }
