@@ -14,6 +14,7 @@ float temp, pres, hum, alt;
 
 
 // Functions
+void scani2c();
 void bme_init(int sda_pin, int scl_pin);
 void getValues();
 void initLed(int pin);
@@ -21,6 +22,7 @@ void blinkLed(int pin, int delay_ms);
 
 void setup() {
   Serial.begin(115200);
+  scani2c();
   bme_init(SDA_PIN, SCL_PIN);
   // initLed(SDA_PIN);
   // initLed(SCL_PIN);  
@@ -35,15 +37,16 @@ void loop() {
 
 
 void bme_init(int sda_pin, int scl_pin) {
+  Wire.setClock(100000);
   Wire.begin(sda_pin, scl_pin); // SDA=21, SCL=22 (pins par défaut)
   Serial.println("BME280 Test");
 
-  if (!bme.begin(BME280_ADDRESS)) {
+  if (!bme.begin(0x76)) {
     /* code */
     Serial.println("BME280 not found");
-    while (!bme.begin(BME280_ADDRESS)) {
+    while (!bme.begin(0x76)) {
       Serial.println("Review hardware setup");
-      vTaskDelay(1000);
+      vTaskDelay(5000);
     }
     
   }
@@ -74,4 +77,25 @@ void blinkLed(int pin, int delay_ms) {
   vTaskDelay(delay_ms);
   digitalWrite(pin, LOW);
   vTaskDelay(delay_ms);
+}
+
+void scani2c() {
+  byte error, address;
+  int nDevices = 0;
+  Serial.println("Scanning...");
+  for(address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.print("Device found at 0x");
+      if (address < 16) Serial.print("0");
+      Serial.print(address, HEX);
+      Serial.print(" (7-bit) or 0x");
+      Serial.print((address << 1), HEX);
+      Serial.println(" (8-bit)");
+      nDevices++;
+    }
+  }
+  if (nDevices == 0) Serial.println("No I2C devices found");
+  vTaskDelay(5000);
 }
