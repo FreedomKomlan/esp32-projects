@@ -1,18 +1,29 @@
 #include <Arduino.h>
+#include <DHT.h>
 
-// put function declarations here:
-int myFunction(int, int);
+#define DHTPIN 19    // broche DATA (GPIO4)
+#define DHTTYPE DHT11   // modèle DHT11
+
+DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+    Serial.begin(115200);
+    Serial.println("DHT11 test start");
+    dht.begin();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
+    delay(2000);
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    if (isnan(h) || isnan(t)) {
+        Serial.println("Échec lecture DHT11 !");
+    } else {
+        Serial.print("Humidité: ");
+        Serial.print(h);
+        Serial.print("%  Température: ");
+        Serial.print(t);
+        Serial.println("°C");
+    }
 }
